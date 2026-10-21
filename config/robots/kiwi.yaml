@@ -6,7 +6,10 @@
     front_cam:
       type: pointcloud
       topic: /camera/depth/color/points
-      override_frame_id: camera_depth_optical_frame_3d
+      # The cloud's real frame is camera_color_optical_frame (the driver aligns depth to color before
+      # building it): relabel it with that frame's _3d alias, not the depth one, which differs by ~1.3 deg
+      # of roll. mount_calibrator's camera.frame must stay the cloud's header frame.
+      override_frame_id: camera_color_optical_frame_3d
       queue_size: 1
       publish_on_update: true
       sensor_processor:
