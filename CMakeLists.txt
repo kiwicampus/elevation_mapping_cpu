@@ -197,6 +197,13 @@ if(BUILD_TESTING)
 
   ament_lint_auto_find_test_dependencies()
 
+  ament_add_gtest(test_${PROJECT_NAME}_elevation_map
+    test/ElevationMapTest.cpp
+  )
+  target_link_libraries(test_${PROJECT_NAME}_elevation_map
+    ${PROJECT_NAME}_library
+  )
+
 
 
 # if(CATKIN_ENABLE_TESTING)

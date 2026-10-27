@@ -344,6 +344,9 @@ class ElevationMapping {
   //! This is useful when having multiple sensors adding data to the map.
   rclcpp::Duration timeTolerance_;
 
+  //! Cells not measured for longer than this [s] are removed before each update. 0 disables it.
+  double decayTime_{0.0};
+
   //! Timer for publishing the fused map.
   rclcpp::TimerBase::SharedPtr fusedMapPublishTimer_;
 

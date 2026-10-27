@@ -105,6 +105,13 @@ class ElevationMap {
   void visibilityCleanup(const rclcpp::Time& updatedTime);
 
   /*!
+   * Removes the cells that have not been measured for longer than decayTime.
+   * @param updatedTime the time of the latest measurement.
+   * @param decayTime the maximum age [s] of a cell measurement.
+   */
+  void decay(const rclcpp::Time& updatedTime, double decayTime);
+
+  /*!
    * Move the grid map w.r.t. to the grid map frame.
    * @param position the new location of the elevation map in the map frame.
    */

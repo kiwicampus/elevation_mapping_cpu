@@ -141,6 +141,8 @@ bool ElevationMap::add(const PointCloudType::Ptr pointCloud, Eigen::VectorXf& po
       horizontalVarianceY = minHorizontalVariance_;
       horizontalVarianceXY = 0.0;
       grid_map::colorVectorToValue(point.getRGBVector3i(), color);
+      // Stamp first observations too, otherwise a cell seen only once never ages out.
+      time = scanTimeSinceInitialization;
       continue;
     }
 
@@ -488,6 +490,17 @@ void ElevationMap::visibilityCleanup(const rclcpp::Time& updatedTime) {
   if (duration.count() > visibilityCleanupDuration_) {
     RCLCPP_WARN(nodeHandle_->get_logger(), "Visibility cleanup duration is too high (current rate is %f).", 1.0 / duration.count());
   }
+}
+
+void ElevationMap::decay(const rclcpp::Time& updatedTime, double decayTime) {
+  const float timeSinceInitialization = (updatedTime - initialTime_).seconds();
+  boost::recursive_mutex::scoped_lock scopedLockForRawData(rawMapMutex_);
+  // NaN times compare false, so cells that were never measured (e.g. initializer patch) are kept.
+  const auto expired = (timeSinceInitialization - rawMap_.get("time").array()) > decayTime;
+  auto& elevation = rawMap_.get("elevation");
+  auto& dynamicTime = rawMap_.get("dynamic_time");
+  elevation = expired.select(NAN, elevation.array()).matrix();
+  dynamicTime = expired.select(0.0f, dynamicTime.array()).matrix();
 }
 
 void ElevationMap::move(const Eigen::Vector2d& position) {
