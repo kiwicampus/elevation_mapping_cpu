@@ -100,9 +100,9 @@ class SensorProcessorBase {
 
   /*!
    * Reads the optional <source>.sensor_processor.frustum.* parameters and builds the frustum.
-   * @return false if the frustum is misconfigured.
+   * A misconfigured frustum is logged and left out; the input keeps mapping with the nominal decay.
    */
-  bool readFrustumParameters(const std::string& inputSourceName);
+  void readFrustumParameters(const std::string& inputSourceName);
 
   /*!
    * Filters the point cloud regardless of the sensor type. Removes NaN values.

@@ -84,10 +84,11 @@ bool SensorProcessorBase::readParameters(std::string& inputSourceName) {
   nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.voxelgrid_filter_size", sensorParameters_["voxelgrid_filter_size"]);
 
   parameters_.setData(parameters);
-  return readFrustumParameters(inputSourceName);
+  readFrustumParameters(inputSourceName);
+  return true;
 }
 
-bool SensorProcessorBase::readFrustumParameters(const std::string& inputSourceName) {
+void SensorProcessorBase::readFrustumParameters(const std::string& inputSourceName) {
   const std::string prefix = inputSourceName + ".sensor_processor.frustum.";
   FrustumParameters parameters;
   parameters.modelType = nodeHandle_->declare_parameter(prefix + "model_type", std::string(""));
@@ -102,8 +103,10 @@ bool SensorProcessorBase::readFrustumParameters(const std::string& inputSourceNa
   try {
     frustum_ = Frustum::create(parameters);
   } catch (const std::invalid_argument& e) {
-    RCLCPP_ERROR(nodeHandle_->get_logger(), "Input source %s has an invalid frustum: %s", inputSourceName.c_str(), e.what());
-    return false;
+    // Only the frustum is dropped: failing the input would stop every source from mapping.
+    RCLCPP_ERROR(nodeHandle_->get_logger(), "Input source %s has an invalid frustum, mapping it without one: %s",
+                 inputSourceName.c_str(), e.what());
+    return;
   }
   if (frustum_ && parameters.decayAcceleration > 0.0) {
     RCLCPP_INFO(nodeHandle_->get_logger(), "Input source %s accelerates decay inside its %s frustum (decay_acceleration %.1f).",
@@ -112,7 +115,6 @@ bool SensorProcessorBase::readFrustumParameters(const std::string& inputSourceNa
     RCLCPP_INFO(nodeHandle_->get_logger(), "Input source %s has a %s frustum for visualization only (decay_acceleration 0).",
                 inputSourceName.c_str(), parameters.modelType.c_str());
   }
-  return true;
 }
 
 bool SensorProcessorBase::process(const PointCloudType::ConstPtr pointCloudInput, const Eigen::Matrix<double, 6, 6>& robotPoseCovariance,

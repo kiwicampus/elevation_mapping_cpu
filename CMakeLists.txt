@@ -203,6 +203,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_${PROJECT_NAME}_elevation_map
     test/ElevationMapTest.cpp
     test/FrustumTest.cpp
+    test/SensorProcessorFrustumTest.cpp
   )
   target_link_libraries(test_${PROJECT_NAME}_elevation_map
     ${PROJECT_NAME}_library
