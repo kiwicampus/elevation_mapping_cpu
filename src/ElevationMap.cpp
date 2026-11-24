@@ -494,8 +494,8 @@ void ElevationMap::visibilityCleanup(const rclcpp::Time& updatedTime) {
 }
 
 void ElevationMap::decay(const rclcpp::Time& updatedTime, double decayTime, const Frustum* frustum) {
-  if (frustum != nullptr && frustum->decayAcceleration() <= 0.0) {
-    frustum = nullptr;  // configured for visualization only
+  if (frustum != nullptr && !frustum->acceleratesDecay()) {
+    frustum = nullptr;
   }
   const double timeSinceInitialization = (updatedTime - initialTime_).seconds();
   boost::recursive_mutex::scoped_lock scopedLockForRawData(rawMapMutex_);

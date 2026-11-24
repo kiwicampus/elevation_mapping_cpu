@@ -13,22 +13,19 @@ Frustum::Ptr Frustum::create(const FrustumParameters& parameters) {
   if (parameters.modelType.empty()) {
     return nullptr;
   }
-  if (parameters.horizontalFov <= 0.0 || parameters.maxRange <= parameters.minRange) {
-    throw std::invalid_argument("horizontal_fov_angle must be > 0 and max_range > min_range");
-  }
   if (parameters.modelType == "depth_camera") {
-    if (parameters.verticalFov <= 0.0 || parameters.horizontalFov >= M_PI || parameters.verticalFov >= M_PI) {
-      throw std::invalid_argument("depth_camera needs 0 < vertical_fov_angle, horizontal_fov_angle < pi");
-    }
     return std::make_unique<DepthCameraFrustum>(parameters);
   }
   if (parameters.modelType == "lidar") {
-    if (parameters.verticalFovEnd <= parameters.verticalFovStart) {
-      throw std::invalid_argument("lidar needs vertical_fov_end_angle > vertical_fov_start_angle");
-    }
     return std::make_unique<LidarFrustum>(parameters);
   }
   throw std::invalid_argument("unknown model_type '" + parameters.modelType + "' (expected depth_camera or lidar)");
+}
+
+Frustum::Frustum(const FrustumParameters& parameters) : decayAcceleration_(parameters.decayAcceleration) {
+  if (parameters.horizontalFov <= 0.0 || parameters.maxRange <= parameters.minRange) {
+    throw std::invalid_argument("horizontal_fov_angle must be > 0 and max_range > min_range");
+  }
 }
 
 std::vector<Eigen::Vector3d> Frustum::outlineInMap() const {
@@ -40,11 +37,16 @@ std::vector<Eigen::Vector3d> Frustum::outlineInMap() const {
 }
 
 DepthCameraFrustum::DepthCameraFrustum(const FrustumParameters& parameters)
-    : Frustum(parameters.decayAcceleration),
+    : Frustum(parameters),
       tanHalfHorizontalFov_(std::tan(parameters.horizontalFov / 2.0)),
       tanHalfVerticalFov_(std::tan(parameters.verticalFov / 2.0)),
       minRange_(parameters.minRange),
-      maxRange_(parameters.maxRange) {}
+      maxRange_(parameters.maxRange) {
+  // At pi or more the half-angle tangent is negative or infinite and isInside() would silently be always false.
+  if (parameters.verticalFov <= 0.0 || parameters.horizontalFov >= M_PI || parameters.verticalFov >= M_PI) {
+    throw std::invalid_argument("depth_camera needs 0 < vertical_fov_angle, horizontal_fov_angle < pi");
+  }
+}
 
 bool DepthCameraFrustum::isInsideSensorFrame(const Eigen::Vector3d& point) const {
   const double depth = point.z();
@@ -69,13 +71,17 @@ std::vector<Eigen::Vector3d> DepthCameraFrustum::outline() const {
 }
 
 LidarFrustum::LidarFrustum(const FrustumParameters& parameters)
-    : Frustum(parameters.decayAcceleration),
+    : Frustum(parameters),
       halfHorizontalFov_(parameters.horizontalFov / 2.0),
       fullCircle_(parameters.horizontalFov >= 2.0 * M_PI - 1e-3),
       verticalFovStart_(parameters.verticalFovStart),
       verticalFovEnd_(parameters.verticalFovEnd),
       minRange_(parameters.minRange),
-      maxRange_(parameters.maxRange) {}
+      maxRange_(parameters.maxRange) {
+  if (parameters.verticalFovEnd <= parameters.verticalFovStart) {
+    throw std::invalid_argument("lidar needs vertical_fov_end_angle > vertical_fov_start_angle");
+  }
+}
 
 bool LidarFrustum::isInsideSensorFrame(const Eigen::Vector3d& point) const {
   const double range = std::hypot(point.x(), point.y());

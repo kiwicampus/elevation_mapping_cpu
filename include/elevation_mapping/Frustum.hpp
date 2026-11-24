@@ -42,11 +42,10 @@ class Frustum {
   /**
    * @brief Builds the model named in parameters.modelType.
    * @return nullptr when no model is configured.
-   * @throws std::invalid_argument for an unknown model or an empty field of view.
+   * @throws std::invalid_argument for an unknown model or an invalid field of view.
    */
   static Ptr create(const FrustumParameters& parameters);
 
-  explicit Frustum(double decayAcceleration) : decayAcceleration_(decayAcceleration) {}
   virtual ~Frustum() = default;
 
   //! Places the frustum at the sensor pose given as the sensor-to-map transformation.
@@ -63,7 +62,13 @@ class Frustum {
 
   double decayAcceleration() const { return decayAcceleration_; }
 
+  //! False when the frustum is only built for visualization (decay_acceleration 0).
+  bool acceleratesDecay() const { return decayAcceleration_ > 0.0; }
+
  protected:
+  //! @throws std::invalid_argument for an empty horizontal field of view or max_range <= min_range.
+  explicit Frustum(const FrustumParameters& parameters);
+
   virtual bool isInsideSensorFrame(const Eigen::Vector3d& point) const = 0;
 
   //! Edges of the field of view in the sensor frame, as consecutive point pairs.
@@ -80,6 +85,7 @@ class Frustum {
  */
 class DepthCameraFrustum : public Frustum {
  public:
+  //! @throws std::invalid_argument unless both fields of view are in (0, pi), plus the Frustum checks.
   explicit DepthCameraFrustum(const FrustumParameters& parameters);
 
  protected:
@@ -98,6 +104,7 @@ class DepthCameraFrustum : public Frustum {
  */
 class LidarFrustum : public Frustum {
  public:
+  //! @throws std::invalid_argument unless vertical_fov_end_angle > vertical_fov_start_angle, plus the Frustum checks.
   explicit LidarFrustum(const FrustumParameters& parameters);
 
  protected:

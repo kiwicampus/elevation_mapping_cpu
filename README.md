@@ -391,7 +391,8 @@ This is the main Robot-Centric Elevation Mapping node. It uses the distance sens
     Field of view of an input source, used for STVL-style clearing on top of `decay_time`: a cell whose top lies inside the
     frustum and is not re-measured ages `decay_acceleration * age^3 / 6` faster on every update, so what the sensor should
     see but does not is removed quickly. Occlusions are ignored, as in STVL. It replaces the ray tracing of
-    `enable_visibility_cleanup` (turn that off to compare), and requires `decay_time > 0`.
+    `enable_visibility_cleanup` (turn that off to compare), and requires `decay_time > 0`. The extra age is stored by
+    moving the cell back in the `time` layer, so for those cells `time` is not the plain last measurement time.
 
     * `model_type`: `depth_camera` (pinhole, optical frame) or `lidar` (x forward, z up).
     * `horizontal_fov_angle` [rad]; lidar: >= 2*pi is a full circle.

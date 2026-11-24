@@ -68,6 +68,18 @@ TEST(Frustum, RejectsInvalidParameters) {  // NOLINT
   EXPECT_THROW(Frustum::create(parameters), std::invalid_argument);
 }
 
+TEST(Frustum, ConstructorsRejectInvalidParameters) {  // NOLINT
+  FrustumParameters parameters = depthCamera();
+  parameters.horizontalFov = M_PI;
+  EXPECT_THROW(elevation_mapping::DepthCameraFrustum{parameters}, std::invalid_argument);
+  parameters = depthCamera();
+  parameters.maxRange = parameters.minRange;
+  EXPECT_THROW(elevation_mapping::DepthCameraFrustum{parameters}, std::invalid_argument);
+  parameters = livox();
+  parameters.verticalFovEnd = parameters.verticalFovStart;
+  EXPECT_THROW(elevation_mapping::LidarFrustum{parameters}, std::invalid_argument);
+}
+
 TEST(DepthCameraFrustum, FollowsTheSensorPose) {  // NOLINT
   const Frustum::Ptr frustum = Frustum::create(depthCamera());
   ASSERT_NE(frustum, nullptr);

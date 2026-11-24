@@ -108,7 +108,7 @@ void SensorProcessorBase::readFrustumParameters(const std::string& inputSourceNa
                  inputSourceName.c_str(), e.what());
     return;
   }
-  if (frustum_ && parameters.decayAcceleration > 0.0) {
+  if (frustum_ && frustum_->acceleratesDecay()) {
     RCLCPP_INFO(nodeHandle_->get_logger(), "Input source %s accelerates decay inside its %s frustum (decay_acceleration %.1f).",
                 inputSourceName.c_str(), parameters.modelType.c_str(), parameters.decayAcceleration);
   } else if (frustum_) {
