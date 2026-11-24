@@ -30,7 +30,7 @@
           vertical_fov_angle: 0.72     # [rad]
           min_range: 0.2               # [m] along the optical axis
           max_range: 10.0              # [m]
-          decay_acceleration: 0.0      # [1/s^2] 0 = off (still drawn with publish_frustums); STVL rgbd_clear uses 5.0
+          decay_acceleration: 5.0      # [1/s^2] 0 = off (still drawn with publish_frustums); STVL rgbd_clear uses 5.0
     map_frame_id: "odom"
     robot_base_frame_id: "inertial_link_3d"
     robot_pose_with_covariance_topic: "/odometry/for_elevation"
