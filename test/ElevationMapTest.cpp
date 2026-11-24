@@ -31,16 +31,23 @@ class ElevationMapDecayTest : public ::testing::Test {
     start_ = node_->get_clock()->now();
   }
 
-  void addPoint(double x, double y, float z, double stampSeconds) {
+  void addPoint(double x, double y, float z, double stampSeconds) { addPoints(x, y, {z}, stampSeconds); }
+
+  // One cloud with a point per height, all in the same cell, added in order.
+  void addPoints(double x, double y, const std::vector<float>& heights, double stampSeconds) {
     PointCloudType::Ptr cloud(new PointCloudType);
-    pcl::PointXYZRGBConfidenceRatio point;
-    point.x = x;
-    point.y = y;
-    point.z = z;
-    cloud->push_back(point);
-    Eigen::VectorXf variances = Eigen::VectorXf::Constant(1, 0.0001);
+    for (const float z : heights) {
+      pcl::PointXYZRGBConfidenceRatio point;
+      point.x = x;
+      point.y = y;
+      point.z = z;
+      cloud->push_back(point);
+    }
+    Eigen::VectorXf variances = Eigen::VectorXf::Constant(heights.size(), kPointVariance);
     ASSERT_TRUE(map_->add(cloud, variances, stamp(stampSeconds), Eigen::Affine3d::Identity()));
   }
+
+  static constexpr float kPointVariance = 0.0001;
 
   bool isValid(double x, double y) { return map_->getRawGridMap().isValid(index(x, y)); }
 
@@ -63,6 +70,18 @@ TEST_F(ElevationMapDecayTest, CellSeenOnceExpires) {  // NOLINT
   EXPECT_TRUE(isValid(0.05, 0.05));
   map_->decay(stamp(13.5), 3.0);
   EXPECT_FALSE(isValid(0.05, 0.05));
+}
+
+// Stamping a new cell's first point also makes later points of the same cloud count as the same scan: the higher one
+// wins, instead of keeping the first and adding multi-height noise to its variance.
+TEST_F(ElevationMapDecayTest, NewCellKeepsHigherPointOfOneCloud) {  // NOLINT
+  addPoints(0.05, 0.05, {0.0, 0.5}, 10.0);
+  addPoints(0.35, 0.35, {0.5, 0.0}, 10.0);
+  const grid_map::GridMap& map = map_->getRawGridMap();
+  for (const auto& cell : {index(0.05, 0.05), index(0.35, 0.35)}) {
+    EXPECT_FLOAT_EQ(map.at("elevation", cell), 0.5);
+    EXPECT_FLOAT_EQ(map.at("variance", cell), kPointVariance);
+  }
 }
 
 TEST_F(ElevationMapDecayTest, RefreshedCellIsKept) {  // NOLINT
