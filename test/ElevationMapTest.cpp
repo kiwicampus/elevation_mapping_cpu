@@ -138,6 +138,14 @@ TEST_F(ElevationMapFrustumDecayTest, RepeatedMissesCompound) {  // NOLINT
   EXPECT_TRUE(isValid(0.35, -0.35));
 }
 
+TEST_F(ElevationMapFrustumDecayTest, OlderCloudDoesNotDelayDecay) {  // NOLINT
+  addPoint(0.35, 0.35, 0.1, 10.0);
+  // A cloud stamped before the cell was measured (out of order) must not move the cell time forward.
+  map_->decay(stamp(8.0), 5.0, frustum_.get());
+  map_->decay(stamp(11.8), 5.0, frustum_.get());
+  EXPECT_FALSE(isValid(0.35, 0.35));
+}
+
 TEST_F(ElevationMapDecayTest, NeverMeasuredCellIsKept) {  // NOLINT
   addPoint(0.05, 0.05, 0.1, 10.0);
   // Like the initializer patch: height set without a measurement time.

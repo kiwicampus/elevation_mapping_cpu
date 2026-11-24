@@ -6,6 +6,7 @@
  *	 Institute: ETH Zurich, ANYbotics
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -509,7 +510,9 @@ void ElevationMap::decay(const rclcpp::Time& updatedTime, double decayTime, cons
     if (std::isnan(elevation(index(0), index(1))) || std::isnan(cellTime)) {
       continue;
     }
-    const double age = timeSinceInitialization - cellTime;
+    // A cloud older than the cell (out of order, within time_tolerance) would give a negative acceleration and move
+    // the cell time into the future, so it would never decay.
+    const double age = std::max(0.0, timeSinceInitialization - cellTime);
     double timeUntilDecay = decayTime - age;
 
     grid_map::Position3 top;
