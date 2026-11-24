@@ -510,11 +510,15 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     map_.clear();
   }
 
+  const Frustum* frustum = sensorProcessor_->frustum();
   if (decayTime_ > 0.0) {
-    map_.decay(lastPointCloudUpdateTime_, decayTime_, sensorProcessor_->frustum());
+    map_.decay(lastPointCloudUpdateTime_, decayTime_, frustum);
+  } else if (frustum != nullptr && frustum->acceleratesDecay()) {
+    // decay_acceleration and decay_time come from different YAML files, chosen separately at launch.
+    RCLCPP_WARN_ONCE(nodeHandle_->get_logger(), "decay_acceleration is set but decay_time is 0: frustum clearing is off.");
   }
-  if (frustumPublisher_ && sensorProcessor_->frustum() != nullptr) {
-    publishFrustum(*sensorProcessor_->frustum(), pointCloudMsg->header.frame_id);
+  if (frustumPublisher_ && frustum != nullptr) {
+    publishFrustum(*frustum, pointCloudMsg->header.frame_id);
   }
 
   // Add point cloud to elevation map.
