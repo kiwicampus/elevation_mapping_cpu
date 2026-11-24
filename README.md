@@ -382,6 +382,29 @@ This is the main Robot-Centric Elevation Mapping node. It uses the distance sens
 
     The rate (in Hz) at which the visibility clean-up is performed.
 
+* **`decay_time`** (double, default: 0.0)
+
+    Cells not measured for longer than this [s] are removed before each update. 0 disables it.
+
+* **`<input>.sensor_processor.frustum.*`** (default: disabled)
+
+    Field of view of an input source, used for STVL-style clearing on top of `decay_time`: a cell whose top lies inside the
+    frustum and is not re-measured ages `decay_acceleration * age^3 / 6` faster on every update, so what the sensor should
+    see but does not is removed quickly. Occlusions are ignored, as in STVL. It replaces the ray tracing of
+    `enable_visibility_cleanup` (turn that off to compare), and requires `decay_time > 0`.
+
+    * `model_type`: `depth_camera` (pinhole, optical frame) or `lidar` (x forward, z up).
+    * `horizontal_fov_angle` [rad]; lidar: >= 2*pi is a full circle.
+    * `vertical_fov_angle` [rad], depth camera only (symmetric).
+    * `vertical_fov_start_angle`, `vertical_fov_end_angle` [rad], lidar only (e.g. Livox Mid-360: -0.12, 0.91).
+    * `min_range`, `max_range` [m]: along the optical axis (depth camera) or horizontal distance (lidar).
+    * `decay_acceleration` [1/s^2]: 0 disables the faster decay (the frustum can still be published).
+
+* **`publish_frustums`** (bool, default: false)
+
+    Debugging: publishes each configured frustum as a `visualization_msgs/Marker` (LINE_LIST, namespace = point cloud
+    frame) on `frustums`, in the map frame, at the pose of every point cloud.
+
 * **`enable_continuous_cleanup`** (bool, default: false)
 
     Enable/disable a continuous clean-up of the elevation map. If enabled, on arrival of each new sensor data the elevation map will be cleared and filled up only with the latest data from the sensor. When continuous clean-up is enabled, visibility clean-up will automatically be disabled since it is not needed in this case.

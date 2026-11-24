@@ -30,7 +30,9 @@ StructuredLightSensorProcessor::StructuredLightSensorProcessor(std::shared_ptr<r
 StructuredLightSensorProcessor::~StructuredLightSensorProcessor() = default;
 
 bool StructuredLightSensorProcessor::readParameters(std::string& inputSourceName) {
-  SensorProcessorBase::readParameters(inputSourceName);
+  if (!SensorProcessorBase::readParameters(inputSourceName)) {
+    return false;
+  }
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.normal_factor_a", rclcpp::ParameterValue(0.0));
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.normal_factor_b", rclcpp::ParameterValue(0.0));
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.normal_factor_c", rclcpp::ParameterValue(0.0));

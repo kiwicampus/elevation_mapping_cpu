@@ -22,6 +22,15 @@
         normal_factor_d: 0.0
         normal_factor_e: 1.0
         lateral_factor: 0.01576
+        # STVL-style clearing: unseen cells inside this field of view decay faster (needs decay_time > 0).
+        # Geometry measured on the color-aligned cloud (160x90, +-35 x +-21 deg), not the D435 depth FoV.
+        frustum:
+          model_type: depth_camera
+          horizontal_fov_angle: 1.20   # [rad]
+          vertical_fov_angle: 0.72     # [rad]
+          min_range: 0.2               # [m] along the optical axis
+          max_range: 10.0              # [m]
+          decay_acceleration: 0.0      # [1/s^2] 0 = off (still drawn with publish_frustums); STVL rgbd_clear uses 5.0
     map_frame_id: "odom"
     robot_base_frame_id: "inertial_link_3d"
     robot_pose_with_covariance_topic: "/odometry/for_elevation"

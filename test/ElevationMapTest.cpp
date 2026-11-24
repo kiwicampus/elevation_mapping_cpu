@@ -74,6 +74,70 @@ TEST_F(ElevationMapDecayTest, RefreshedCellIsKept) {  // NOLINT
   EXPECT_TRUE(isValid(0.35, 0.35));
 }
 
+// Narrow camera at (-1, 0.35, 0.1) looking along +x: sees the cell at (0.35, 0.35), not the one at (0.35, -0.35).
+class ElevationMapFrustumDecayTest : public ElevationMapDecayTest {
+ protected:
+  void SetUp() override {
+    ElevationMapDecayTest::SetUp();
+    frustum_ = makeFrustum(5.0);
+  }
+
+  static elevation_mapping::Frustum::Ptr makeFrustum(double decayAcceleration) {
+    elevation_mapping::FrustumParameters parameters;
+    parameters.modelType = "depth_camera";
+    parameters.horizontalFov = 0.2;
+    parameters.verticalFov = 0.2;
+    parameters.minRange = 0.2;
+    parameters.maxRange = 5.0;
+    parameters.decayAcceleration = decayAcceleration;
+    elevation_mapping::Frustum::Ptr frustum = elevation_mapping::Frustum::create(parameters);
+    Eigen::Affine3d sensorToMap = Eigen::Affine3d::Identity();
+    sensorToMap.linear() << 0, 0, 1, -1, 0, 0, 0, -1, 0;
+    sensorToMap.translation() << -1.0, 0.35, 0.1;
+    frustum->setPose(sensorToMap);
+    return frustum;
+  }
+
+  elevation_mapping::Frustum::Ptr frustum_;
+};
+
+TEST_F(ElevationMapFrustumDecayTest, ZeroAccelerationKeepsNominalDecay) {  // NOLINT
+  const elevation_mapping::Frustum::Ptr visualizationOnly = makeFrustum(0.0);
+  addPoint(0.35, 0.35, 0.1, 10.0);
+  map_->decay(stamp(11.8), 5.0, visualizationOnly.get());
+  EXPECT_TRUE(isValid(0.35, 0.35));
+  map_->decay(stamp(15.5), 5.0, visualizationOnly.get());
+  EXPECT_FALSE(isValid(0.35, 0.35));
+}
+
+TEST_F(ElevationMapFrustumDecayTest, UnseenCellInsideFrustumExpiresFirst) {  // NOLINT
+  addPoint(0.35, 0.35, 0.1, 10.0);
+  addPoint(0.35, -0.35, 0.1, 10.0);
+  // Age 1.8 s: 5 - 1.8 - 5 * 1.8^3 / 6 < 0 inside the frustum; 5 - 1.8 > 0 outside.
+  map_->decay(stamp(11.8), 5.0, frustum_.get());
+  EXPECT_FALSE(isValid(0.35, 0.35));
+  EXPECT_TRUE(isValid(0.35, -0.35));
+}
+
+TEST_F(ElevationMapFrustumDecayTest, RefreshedCellInsideFrustumIsKept) {  // NOLINT
+  addPoint(0.35, 0.35, 0.1, 10.0);
+  addPoint(0.35, 0.35, 0.1, 11.75);
+  map_->decay(stamp(11.8), 5.0, frustum_.get());
+  EXPECT_TRUE(isValid(0.35, 0.35));
+}
+
+TEST_F(ElevationMapFrustumDecayTest, RepeatedMissesCompound) {  // NOLINT
+  addPoint(0.35, 0.35, 0.1, 10.0);
+  addPoint(0.35, -0.35, 0.1, 10.0);
+  map_->decay(stamp(10.5), 5.0, frustum_.get());
+  map_->decay(stamp(11.0), 5.0, frustum_.get());
+  EXPECT_TRUE(isValid(0.35, 0.35));
+  // A single pass at age 1.5 s keeps the cell (5 - 1.5 - 2.8 > 0); the age added by the earlier misses removes it.
+  map_->decay(stamp(11.5), 5.0, frustum_.get());
+  EXPECT_FALSE(isValid(0.35, 0.35));
+  EXPECT_TRUE(isValid(0.35, -0.35));
+}
+
 TEST_F(ElevationMapDecayTest, NeverMeasuredCellIsKept) {  // NOLINT
   addPoint(0.05, 0.05, 0.1, 10.0);
   // Like the initializer patch: height set without a measurement time.

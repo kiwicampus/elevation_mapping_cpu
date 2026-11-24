@@ -25,6 +25,7 @@
 #include <unordered_map>
 
 // PCL
+#include "elevation_mapping/Frustum.hpp"
 #include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
 #include "elevation_mapping/ThreadSafeDataWrapper.hpp"
 
@@ -83,6 +84,12 @@ class SensorProcessorBase {
    */
   bool isTfAvailableInBuffer() { return firstTfAvailable_; }
 
+  /*!
+   * Field of view of this sensor at the pose of the last processed point cloud.
+   * @return nullptr when no frustum is configured.
+   */
+  const Frustum* frustum() const { return frustum_.get(); }
+
  protected:
   /*!
    * Reads and verifies the parameters.
@@ -90,6 +97,12 @@ class SensorProcessorBase {
    * @return true if successful.
    */
   virtual bool readParameters(std::string& inputSourceName);
+
+  /*!
+   * Reads the optional <source>.sensor_processor.frustum.* parameters and builds the frustum.
+   * @return false if the frustum is misconfigured.
+   */
+  bool readFrustumParameters(const std::string& inputSourceName);
 
   /*!
    * Filters the point cloud regardless of the sensor type. Removes NaN values.
@@ -161,6 +174,9 @@ class SensorProcessorBase {
 
   //! Transformation from Sensor to Map frame
   Eigen::Affine3d transformationSensorToMap_;
+
+  //! Optional sensor field of view, used to accelerate the decay of unseen cells (STVL rule).
+  Frustum::Ptr frustum_;
 
   GeneralParameters generalParameters_;
 

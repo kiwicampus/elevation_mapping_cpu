@@ -33,7 +33,9 @@ LaserSensorProcessor::LaserSensorProcessor(std::shared_ptr<rclcpp::Node>& nodeHa
 LaserSensorProcessor::~LaserSensorProcessor() = default;
 
 bool LaserSensorProcessor::readParameters(std::string& inputSourceName) {
-  SensorProcessorBase::readParameters(inputSourceName);
+  if (!SensorProcessorBase::readParameters(inputSourceName)) {
+    return false;
+  }
 
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.min_radius", 0.0);
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.beam_angle", 0.0);

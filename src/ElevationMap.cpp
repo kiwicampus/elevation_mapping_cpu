@@ -492,15 +492,42 @@ void ElevationMap::visibilityCleanup(const rclcpp::Time& updatedTime) {
   }
 }
 
-void ElevationMap::decay(const rclcpp::Time& updatedTime, double decayTime) {
-  const float timeSinceInitialization = (updatedTime - initialTime_).seconds();
+void ElevationMap::decay(const rclcpp::Time& updatedTime, double decayTime, const Frustum* frustum) {
+  if (frustum != nullptr && frustum->decayAcceleration() <= 0.0) {
+    frustum = nullptr;  // configured for visualization only
+  }
+  const double timeSinceInitialization = (updatedTime - initialTime_).seconds();
   boost::recursive_mutex::scoped_lock scopedLockForRawData(rawMapMutex_);
-  // NaN times compare false, so cells that were never measured (e.g. initializer patch) are kept.
-  const auto expired = (timeSinceInitialization - rawMap_.get("time").array()) > decayTime;
   auto& elevation = rawMap_.get("elevation");
+  auto& time = rawMap_.get("time");
   auto& dynamicTime = rawMap_.get("dynamic_time");
-  elevation = expired.select(NAN, elevation.array()).matrix();
-  dynamicTime = expired.select(0.0f, dynamicTime.array()).matrix();
+
+  for (grid_map::GridMapIterator iterator(rawMap_); !iterator.isPastEnd(); ++iterator) {
+    const grid_map::Index index(*iterator);
+    float& cellTime = time(index(0), index(1));
+    // Cells that were never measured (e.g. initializer patch) have no time and are kept.
+    if (std::isnan(elevation(index(0), index(1))) || std::isnan(cellTime)) {
+      continue;
+    }
+    const double age = timeSinceInitialization - cellTime;
+    double timeUntilDecay = decayTime - age;
+
+    grid_map::Position3 top;
+    if (frustum != nullptr && rawMap_.getPosition3("elevation", index, top) && frustum->isInside(top)) {
+      const double acceleration = frustum->decayAcceleration() * age * age * age / 6.0;
+      timeUntilDecay -= acceleration;
+      if (timeUntilDecay >= 0.0) {
+        // As STVL does, keep the extra age so repeated misses compound.
+        cellTime -= static_cast<float>(acceleration);
+        continue;
+      }
+    }
+
+    if (timeUntilDecay < 0.0) {
+      elevation(index(0), index(1)) = NAN;
+      dynamicTime(index(0), index(1)) = 0.0f;
+    }
+  }
 }
 
 void ElevationMap::move(const Eigen::Vector2d& position) {

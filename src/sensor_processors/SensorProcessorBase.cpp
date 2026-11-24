@@ -84,6 +84,34 @@ bool SensorProcessorBase::readParameters(std::string& inputSourceName) {
   nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.voxelgrid_filter_size", sensorParameters_["voxelgrid_filter_size"]);
 
   parameters_.setData(parameters);
+  return readFrustumParameters(inputSourceName);
+}
+
+bool SensorProcessorBase::readFrustumParameters(const std::string& inputSourceName) {
+  const std::string prefix = inputSourceName + ".sensor_processor.frustum.";
+  FrustumParameters parameters;
+  parameters.modelType = nodeHandle_->declare_parameter(prefix + "model_type", std::string(""));
+  parameters.horizontalFov = nodeHandle_->declare_parameter(prefix + "horizontal_fov_angle", 0.0);
+  parameters.verticalFov = nodeHandle_->declare_parameter(prefix + "vertical_fov_angle", 0.0);
+  parameters.verticalFovStart = nodeHandle_->declare_parameter(prefix + "vertical_fov_start_angle", 0.0);
+  parameters.verticalFovEnd = nodeHandle_->declare_parameter(prefix + "vertical_fov_end_angle", 0.0);
+  parameters.minRange = nodeHandle_->declare_parameter(prefix + "min_range", 0.0);
+  parameters.maxRange = nodeHandle_->declare_parameter(prefix + "max_range", 0.0);
+  parameters.decayAcceleration = nodeHandle_->declare_parameter(prefix + "decay_acceleration", 0.0);
+
+  try {
+    frustum_ = Frustum::create(parameters);
+  } catch (const std::invalid_argument& e) {
+    RCLCPP_ERROR(nodeHandle_->get_logger(), "Input source %s has an invalid frustum: %s", inputSourceName.c_str(), e.what());
+    return false;
+  }
+  if (frustum_ && parameters.decayAcceleration > 0.0) {
+    RCLCPP_INFO(nodeHandle_->get_logger(), "Input source %s accelerates decay inside its %s frustum (decay_acceleration %.1f).",
+                inputSourceName.c_str(), parameters.modelType.c_str(), parameters.decayAcceleration);
+  } else if (frustum_) {
+    RCLCPP_INFO(nodeHandle_->get_logger(), "Input source %s has a %s frustum for visualization only (decay_acceleration 0).",
+                inputSourceName.c_str(), parameters.modelType.c_str());
+  }
   return true;
 }
 
@@ -139,6 +167,9 @@ bool SensorProcessorBase::updateTransformations(const rclcpp::Time& timeStamp) {
     transformGeom = transformBuffer_->lookupTransform(generalParameters_.mapFrameId_, sensorFrameId_, timeStamp,
                                                       rclcpp::Duration::from_seconds(1.0));
     transformationSensorToMap_ = tf2::transformToEigen(transformGeom);
+    if (frustum_) {
+      frustum_->setPose(transformationSensorToMap_);
+    }
 
     transformGeom = transformBuffer_->lookupTransform(generalParameters_.robotBaseFrameId_, sensorFrameId_, timeStamp,
                                                       rclcpp::Duration::from_seconds(1.0));  // TODO(max): Why wrong direction?

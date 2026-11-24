@@ -22,6 +22,15 @@
         normal_factor_d: 0.0
         normal_factor_e: 1.0
         lateral_factor: 0.01576
+        # STVL-style clearing: unseen cells inside this field of view decay faster (needs decay_time > 0).
+        # Geometry measured on the color-aligned cloud (160x90, +-35 x +-21 deg), not the D435 depth FoV.
+        frustum:
+          model_type: depth_camera
+          horizontal_fov_angle: 1.20   # [rad]
+          vertical_fov_angle: 0.72     # [rad]
+          min_range: 0.2               # [m] along the optical axis
+          max_range: 10.0              # [m]
+          decay_acceleration: 0.0      # [1/s^2] 0 = off (still drawn with publish_frustums); STVL rgbd_clear uses 5.0
     livox:
       type: pointcloud
       # Kronos' existing filtered lidar cloud (sensor_msgs/PointCloud2, native
@@ -43,6 +52,15 @@
         min_radius: 0.02
         beam_angle: 0.0049
         beam_constant: 0.0015
+        # STVL-style clearing, same geometry as the livox_lcl_clear STVL source (needs decay_time > 0).
+        frustum:
+          model_type: lidar
+          horizontal_fov_angle: 6.29        # [rad] full circle
+          vertical_fov_start_angle: -0.12   # [rad] Mid-360 lower edge
+          vertical_fov_end_angle: 0.91      # [rad] Mid-360 upper edge
+          min_range: 0.1                    # [m] horizontal distance
+          max_range: 20.0                   # [m]
+          decay_acceleration: 0.0           # [1/s^2] 0 = off (still drawn with publish_frustums); STVL livox_lcl_clear uses 20.0
     map_frame_id: "odom"
     robot_base_frame_id: "inertial_link_3d"
     robot_pose_with_covariance_topic: "/odometry/for_elevation"
