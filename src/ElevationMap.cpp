@@ -515,8 +515,9 @@ void ElevationMap::decay(const rclcpp::Time& updatedTime, double decayTime, cons
     const double age = std::max(0.0, timeSinceInitialization - cellTime);
     double timeUntilDecay = decayTime - age;
 
-    grid_map::Position3 top;
-    if (frustum != nullptr && rawMap_.getPosition3("elevation", index, top) && frustum->isInside(top)) {
+    grid_map::Position xy;
+    if (frustum != nullptr && rawMap_.getPosition(index, xy) &&
+        frustum->isInside(Eigen::Vector3d(xy.x(), xy.y(), elevation(index(0), index(1))))) {
       const double acceleration = frustum->decayAcceleration() * age * age * age / 6.0;
       timeUntilDecay -= acceleration;
       if (timeUntilDecay >= 0.0) {
