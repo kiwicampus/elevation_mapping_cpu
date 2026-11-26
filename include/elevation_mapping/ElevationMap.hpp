@@ -25,6 +25,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 // Elevation Mapping
+#include "elevation_mapping/Frustum.hpp"
 #include "elevation_mapping/PointXYZRGBConfidenceRatio.hpp"
 #include "elevation_mapping/postprocessing/PostprocessorPool.hpp"
 
@@ -103,6 +104,17 @@ class ElevationMap {
    * @param updatedTime
    */
   void visibilityCleanup(const rclcpp::Time& updatedTime);
+
+  /*!
+   * Removes the cells that have not been measured for longer than decayTime. Cells whose top lies inside the
+   * frustum age faster (STVL rule): the sensor should see them, so not re-measuring them means they are gone.
+   * As in STVL, that extra age is kept by moving the cell back in the "time" layer, so inside a frustum that layer
+   * holds the measurement time minus the accumulated penalty, not the plain last measurement time.
+   * @param updatedTime the time of the latest measurement.
+   * @param decayTime the maximum age [s] of a cell measurement.
+   * @param frustum field of view of the sensor that produced the latest measurement, or nullptr.
+   */
+  void decay(const rclcpp::Time& updatedTime, double decayTime, const Frustum* frustum = nullptr);
 
   /*!
    * Move the grid map w.r.t. to the grid map frame.

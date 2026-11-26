@@ -24,6 +24,7 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <std_msgs/msg/string.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 #include "tf2_ros/transform_broadcaster.h"
 
 // Eigen
@@ -195,6 +196,13 @@ class ElevationMapping {
   bool readParameters();
 
   /*!
+   * Publishes the field of view of a sensor as line markers in the map frame (debugging, publish_frustums).
+   * @param frustum the frustum placed at the pose of the last point cloud.
+   * @param sensorFrameId frame of that point cloud, used as marker namespace.
+   */
+  void publishFrustum(const Frustum& frustum, const std::string& sensorFrameId);
+
+  /*!
    * Performs the initialization procedure.
    *
    * @return true if successful.
@@ -343,6 +351,12 @@ class ElevationMapping {
   //! Time tolerance for updating the map with data before the last update.
   //! This is useful when having multiple sensors adding data to the map.
   rclcpp::Duration timeTolerance_;
+
+  //! Cells not measured for longer than this [s] are removed before each update. 0 disables it.
+  double decayTime_{0.0};
+
+  //! Sensor frustums as markers on "frustums"; null unless publish_frustums is set.
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr frustumPublisher_;
 
   //! Timer for publishing the fused map.
   rclcpp::TimerBase::SharedPtr fusedMapPublishTimer_;

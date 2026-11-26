@@ -24,7 +24,9 @@ StereoSensorProcessor::StereoSensorProcessor(std::shared_ptr<rclcpp::Node>& node
 StereoSensorProcessor::~StereoSensorProcessor() = default;
 
 bool StereoSensorProcessor::readParameters(std::string& inputSourceName) {
-  SensorProcessorBase::readParameters(inputSourceName);
+  if (!SensorProcessorBase::readParameters(inputSourceName)) {
+    return false;
+  }
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.p_1", rclcpp::ParameterValue(0.0));
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.p_2", rclcpp::ParameterValue(0.0));
   nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.p_3", rclcpp::ParameterValue(0.0));

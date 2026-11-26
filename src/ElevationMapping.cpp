@@ -279,6 +279,8 @@ bool ElevationMapping::readParameters() {
   nodeHandle_->declare_parameter("enable_visibility_cleanup", true);
   nodeHandle_->declare_parameter("enable_continuous_cleanup", false);
   nodeHandle_->declare_parameter("scanning_duration", 1.0);
+  nodeHandle_->declare_parameter("decay_time", 0.0);
+  nodeHandle_->declare_parameter("publish_frustums", false);
   nodeHandle_->declare_parameter("masked_replace_service_mask_layer_name", std::string("mask"));
 
   nodeHandle_->get_parameter("min_variance", map_.minVariance_);
@@ -291,6 +293,10 @@ bool ElevationMapping::readParameters() {
   nodeHandle_->get_parameter("enable_visibility_cleanup", map_.enableVisibilityCleanup_);
   nodeHandle_->get_parameter("enable_continuous_cleanup", map_.enableContinuousCleanup_);
   nodeHandle_->get_parameter("scanning_duration", map_.scanningDuration_);
+  nodeHandle_->get_parameter("decay_time", decayTime_);
+  if (nodeHandle_->get_parameter("publish_frustums").as_bool()) {
+    frustumPublisher_ = nodeHandle_->create_publisher<visualization_msgs::msg::Marker>("frustums", 10);
+  }
   nodeHandle_->get_parameter("masked_replace_service_mask_layer_name", maskedReplaceServiceMaskLayerName_);
 
   // Settings for initializing elevation map
@@ -469,6 +475,12 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     // resetMapUpdateTimer();
     return;
   }
+
+  // Debug output, published before taking the map lock that fusion and visibility cleanup also wait on.
+  const Frustum* frustum = sensorProcessor_->frustum();
+  if (frustumPublisher_ && frustum != nullptr) {
+    publishFrustum(*frustum, pointCloudMsg->header.frame_id);
+  }
   
   // RCLCPP_INFO_STREAM(nodeHandle_->get_logger(),
   //                    "Variance is:" << measurementVariances[0] << " , " << measurementVariances[10] << " , "
@@ -504,6 +516,13 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     map_.clear();
   }
 
+  if (decayTime_ > 0.0) {
+    map_.decay(lastPointCloudUpdateTime_, decayTime_, frustum);
+  } else if (frustum != nullptr && frustum->acceleratesDecay()) {
+    // decay_acceleration and decay_time come from different YAML files, chosen separately at launch.
+    RCLCPP_WARN_ONCE(nodeHandle_->get_logger(), "decay_acceleration is set but decay_time is 0: frustum clearing is off.");
+  }
+
   // Add point cloud to elevation map.
   if (!map_.add(pointCloudProcessed, measurementVariances, lastPointCloudUpdateTime_,
                 Eigen::Affine3d(sensorProcessor_->transformationSensorToMap_))) {
@@ -523,6 +542,27 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
   }
 
   // resetMapUpdateTimer();
+}
+
+void ElevationMapping::publishFrustum(const Frustum& frustum, const std::string& sensorFrameId) {
+  visualization_msgs::msg::Marker marker;
+  marker.header.frame_id = mapFrameId_;
+  marker.header.stamp = lastPointCloudUpdateTime_;
+  marker.ns = sensorFrameId;
+  marker.type = visualization_msgs::msg::Marker::LINE_LIST;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+  marker.pose.orientation.w = 1.0;
+  marker.scale.x = 0.02;
+  marker.color.g = 1.0;
+  marker.color.a = 1.0;
+  for (const Eigen::Vector3d& point : frustum.outlineInMap()) {
+    geometry_msgs::msg::Point vertex;
+    vertex.x = point.x();
+    vertex.y = point.y();
+    vertex.z = point.z();
+    marker.points.push_back(vertex);
+  }
+  frustumPublisher_->publish(marker);
 }
 
 void ElevationMapping::mapUpdateTimerCallback() {

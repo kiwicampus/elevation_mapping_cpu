@@ -32,6 +32,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 find_package(Boost REQUIRED COMPONENTS system thread)
 find_package(Eigen3 REQUIRED)
@@ -55,6 +56,7 @@ set(DEPENDENCIES
   tf2_eigen
   tf2_geometry_msgs
   geometry_msgs
+  visualization_msgs
   # Threads
 )
 
@@ -99,6 +101,7 @@ ament_target_dependencies(${PROJECT_NAME}_pcl_types
 add_library(${PROJECT_NAME}_library
   src/ElevationMapping.cpp
   src/ElevationMap.cpp
+  src/Frustum.cpp
   src/input_sources/Input.cpp
   src/input_sources/InputSourceManager.cpp
   src/postprocessing/PostprocessorPool.cpp
@@ -196,6 +199,15 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 
   ament_lint_auto_find_test_dependencies()
+
+  ament_add_gtest(test_${PROJECT_NAME}_elevation_map
+    test/ElevationMapTest.cpp
+    test/FrustumTest.cpp
+    test/SensorProcessorFrustumTest.cpp
+  )
+  target_link_libraries(test_${PROJECT_NAME}_elevation_map
+    ${PROJECT_NAME}_library
+  )
 
 
 

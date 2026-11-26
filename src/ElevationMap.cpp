@@ -6,6 +6,7 @@
  *	 Institute: ETH Zurich, ANYbotics
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -141,6 +142,8 @@ bool ElevationMap::add(const PointCloudType::Ptr pointCloud, Eigen::VectorXf& po
       horizontalVarianceY = minHorizontalVariance_;
       horizontalVarianceXY = 0.0;
       grid_map::colorVectorToValue(point.getRGBVector3i(), color);
+      // Stamp first observations too, otherwise a cell seen only once never ages out.
+      time = scanTimeSinceInitialization;
       continue;
     }
 
@@ -487,6 +490,47 @@ void ElevationMap::visibilityCleanup(const rclcpp::Time& updatedTime) {
   RCLCPP_DEBUG(nodeHandle_->get_logger(), "Visibility cleanup has been performed in %f s (%d points).", duration.count(), (int)cellPositionsToRemove.size());
   if (duration.count() > visibilityCleanupDuration_) {
     RCLCPP_WARN(nodeHandle_->get_logger(), "Visibility cleanup duration is too high (current rate is %f).", 1.0 / duration.count());
+  }
+}
+
+void ElevationMap::decay(const rclcpp::Time& updatedTime, double decayTime, const Frustum* frustum) {
+  if (frustum != nullptr && !frustum->acceleratesDecay()) {
+    frustum = nullptr;
+  }
+  const double timeSinceInitialization = (updatedTime - initialTime_).seconds();
+  boost::recursive_mutex::scoped_lock scopedLockForRawData(rawMapMutex_);
+  auto& elevation = rawMap_.get("elevation");
+  auto& time = rawMap_.get("time");
+  auto& dynamicTime = rawMap_.get("dynamic_time");
+
+  for (grid_map::GridMapIterator iterator(rawMap_); !iterator.isPastEnd(); ++iterator) {
+    const grid_map::Index index(*iterator);
+    float& cellTime = time(index(0), index(1));
+    // Cells that were never measured (e.g. initializer patch) have no time and are kept.
+    if (std::isnan(elevation(index(0), index(1))) || std::isnan(cellTime)) {
+      continue;
+    }
+    // A cloud older than the cell (out of order, within time_tolerance) would give a negative acceleration and move
+    // the cell time into the future, so it would never decay.
+    const double age = std::max(0.0, timeSinceInitialization - cellTime);
+    double timeUntilDecay = decayTime - age;
+
+    grid_map::Position xy;
+    if (frustum != nullptr && rawMap_.getPosition(index, xy) &&
+        frustum->isInside(Eigen::Vector3d(xy.x(), xy.y(), elevation(index(0), index(1))))) {
+      const double acceleration = frustum->decayAcceleration() * age * age * age / 6.0;
+      timeUntilDecay -= acceleration;
+      if (timeUntilDecay >= 0.0) {
+        // As STVL does, keep the extra age so repeated misses compound.
+        cellTime -= static_cast<float>(acceleration);
+        continue;
+      }
+    }
+
+    if (timeUntilDecay < 0.0) {
+      elevation(index(0), index(1)) = NAN;
+      dynamicTime(index(0), index(1)) = 0.0f;
+    }
   }
 }
 

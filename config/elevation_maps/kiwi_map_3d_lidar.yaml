@@ -28,3 +28,4 @@
     enable_visibility_cleanup: true
     visibility_cleanup_rate: 1.0
     scanning_duration: 0.1
+    decay_time: 5.0 # [s] remove cells not measured for this long (out-of-FoV leftovers). 0 disables.
